@@ -77,3 +77,8 @@ variable "create_load_balancer" {
   type    = bool
   default = true
 }
+
+variable "source_ranges" {
+  type    = list(string)
+  default = ["0.0.0.0/0"]
+}

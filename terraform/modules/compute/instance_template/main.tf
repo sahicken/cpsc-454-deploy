@@ -160,7 +160,8 @@ resource "google_compute_firewall" "app" {
     ports    = [var.container_port]
   }
 
-  target_tags = ["${var.service_name}-vm"]
+  source_ranges = var.source_ranges
+  target_tags   = ["${var.service_name}-vm"]
 }
 
 # HTTP Load Balancer
