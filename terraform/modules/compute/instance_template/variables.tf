@@ -72,3 +72,8 @@ variable "backend_lb_ip" {
   type    = string
   default = ""
 }
+
+variable "create_load_balancer" {
+  type    = bool
+  default = true
+}

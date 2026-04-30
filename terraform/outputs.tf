@@ -1,11 +1,11 @@
 output "frontend_lb_ip" {
-  value       = module.frontend_compute.load_balancer_ip
-  description = "Frontend load balancer external IP"
+  value       = module.load_balancer.load_balancer_ip
+  description = "Consolidated load balancer external IP (frontend default)"
 }
 
 output "backend_lb_ip" {
-  value       = module.backend_compute.load_balancer_ip
-  description = "Backend load balancer external IP"
+  value       = module.load_balancer.load_balancer_ip
+  description = "Consolidated load balancer external IP (routes /api/* to backend)"
 }
 
 output "mongodb_internal_ip" {

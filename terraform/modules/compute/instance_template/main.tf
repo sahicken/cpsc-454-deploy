@@ -165,12 +165,14 @@ resource "google_compute_firewall" "app" {
 # HTTP Load Balancer
 resource "google_compute_url_map" "app" {
   name            = "${var.service_name}-url-map"
+  count           = var.create_load_balancer ? 1 : 0
   default_service = google_compute_backend_service.app.id
 }
 
 resource "google_compute_target_http_proxy" "app" {
   name            = "${var.service_name}-http-proxy"
-  url_map         = google_compute_url_map.app.id
+  count    = var.create_load_balancer ? 1 : 0
+  url_map  = google_compute_url_map.app[0].id
 }
 
 resource "google_compute_global_forwarding_rule" "app" {
@@ -178,9 +180,14 @@ resource "google_compute_global_forwarding_rule" "app" {
   load_balancing_scheme = "EXTERNAL"
   ip_protocol           = "TCP"
   port_range            = "80"
-  target                = google_compute_target_http_proxy.app.id
+  count   = var.create_load_balancer ? 1 : 0
+  target  = google_compute_target_http_proxy.app[0].id
 }
 
 output "load_balancer_ip" {
-  value = google_compute_global_forwarding_rule.app.ip_address
+  value = var.create_load_balancer ? google_compute_global_forwarding_rule.app[0].ip_address : ""
+}
+
+output "backend_service_id" {
+  value = google_compute_backend_service.app.id
 }

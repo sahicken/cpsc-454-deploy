@@ -103,6 +103,7 @@ module "frontend_compute" {
   health_check_port     = 3000
   min_replicas          = 1
   max_replicas          = 2
+  create_load_balancer  = false
 
   depends_on = [module.artifacts, module.network]
 }
@@ -128,6 +129,25 @@ module "backend_compute" {
   max_replicas          = 2
   mongodb_host          = module.mongodb.mongodb_internal_ip
   mongodb_port          = 27017
+  create_load_balancer  = false
 
   depends_on = [module.artifacts, module.network, module.mongodb]
+}
+
+# Consolidated HTTP(S) Load Balancer routing frontend default and /api/* to backend
+module "load_balancer" {
+  source = "./modules/loadbalancer"
+
+  gcp_project_id = var.gcp_project_id
+  gcp_region     = var.gcp_region
+
+  frontend_backend_service_id = module.frontend_compute.backend_service_id
+  backend_backend_service_id  = module.backend_compute.backend_service_id
+  name_prefix                 = "app-staging"
+
+  depends_on = [module.frontend_compute, module.backend_compute]
+}
+
+output "load_balancer_ip" {
+  value = module.load_balancer.load_balancer_ip
 }

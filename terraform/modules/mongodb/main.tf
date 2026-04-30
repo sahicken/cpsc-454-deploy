@@ -20,6 +20,13 @@ resource "google_compute_instance_template" "mongodb" {
     boot         = true
   }
 
+  # Attach a separate persistent disk (created below) to persist MongoDB data
+  disk {
+    auto_delete = false
+    boot        = false
+    source      = google_compute_disk.mongodb_disk.self_link
+  }
+
   network_interface {
     network    = var.network_id
     subnetwork = var.subnet_id
@@ -66,12 +73,37 @@ resource "google_compute_instance_template" "mongodb" {
         volumes = [
           {
             name = "mongodb-data"
-            emptyDir = {}
+            hostPath = {
+              path = "/data/db"
+            }
           }
         ]
         restartPolicy = "Always"
       }
     })
+    # Startup script mounts the persistent disk to /data/db before the container starts
+    "startup-script" = <<-EOT
+      #!/bin/bash
+      set -e
+      DISK_DEVICE="/dev/disk/by-id/google-mongodb-disk-${var.environment}"
+      MOUNT_POINT="/data/db"
+      mkdir -p ${MOUNT_POINT}
+      # wait for disk to be attached
+      for i in {1..30}; do
+        if [ -e "${DISK_DEVICE}" ]; then
+          break
+        fi
+        sleep 1
+      done
+      if ! mountpoint -q ${MOUNT_POINT}; then
+        # try to format if no filesystem
+        if ! blkid ${DISK_DEVICE}; then
+          mkfs.ext4 -F ${DISK_DEVICE} || true
+        fi
+        mount ${DISK_DEVICE} ${MOUNT_POINT}
+        chown -R 1000:1000 ${MOUNT_POINT} || true
+      fi
+    EOT
     "enable-oslogin" = "TRUE"
   }
 
@@ -87,6 +119,14 @@ resource "google_compute_instance_from_template" "mongodb" {
   name             = "mongodb-${var.environment}"
   zone             = "${var.gcp_region}-a"
   source_instance_template = google_compute_instance_template.mongodb.id
+}
+
+# Persistent disk for MongoDB data
+resource "google_compute_disk" "mongodb_disk" {
+  name  = "mongodb-disk-${var.environment}"
+  type  = "pd-standard"
+  zone  = "${var.gcp_region}-a"
+  size  = var.disk_size_gb
 }
 
 # Firewall rule for MongoDB access from backend
@@ -137,4 +177,9 @@ variable "subnet_id" {
 
 variable "service_account_email" {
   type = string
+}
+
+variable "disk_size_gb" {
+  type    = number
+  default = 50
 }
