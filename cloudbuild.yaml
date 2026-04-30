@@ -69,6 +69,21 @@ steps:
       - "TF_VAR_gcp_project_id=$PROJECT_ID"
       - "TF_VAR_gcp_region=${_REGION}"
 
+  # Step 7: Smoke tests — verify frontend '/' and backend '/health'
+  - name: "gcr.io/cloud-builders/terraform"
+    dir: "terraform"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        IP=$(terraform output -raw frontend_lb_ip 2>/dev/null || terraform output frontend_lb_ip)
+        echo "Load balancer IP: $IP"
+        echo "Checking frontend /"
+        curl -fsS --max-time 10 http://${IP} || (echo 'Frontend check failed'; exit 1)
+        echo "Checking backend /health"
+        curl -fsS --max-time 10 http://${IP}:9001/health || (echo 'Backend health failed'; exit 1)
+
 images:
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}"
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}"

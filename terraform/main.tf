@@ -36,6 +36,7 @@ module "network" {
   network_name   = "app-network"
 }
 
+
 # MongoDB VM
 module "mongodb" {
   source = "./modules/mongodb"

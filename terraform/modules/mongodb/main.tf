@@ -35,52 +35,59 @@ resource "google_compute_instance_template" "mongodb" {
   }
 
   metadata = {
-    "gce-container-declaration" = jsonencode({
-      spec = {
-        containers = [
-          {
-            image = "mongo:8.0"
-            ports = [
-              {
-                containerPort = 27017
-              }
-            ]
-            env = [
-              {
-                name  = "MONGO_INITDB_ROOT_USERNAME"
-                value = "admin"
-              },
-              {
-                name  = "MONGO_INITDB_ROOT_PASSWORD"
-                value = "changeme"  # Override with Secret Manager in production
-              }
-            ]
-            volumeMounts = [
-              {
-                name      = "mongodb-data"
-                mountPath = "/data/db"
-              }
-            ]
-          }
-        ]
-        volumes = [
-          {
-            name = "mongodb-data"
-            hostPath = {
-              path = "/data/db"
-            }
-          }
-        ]
-        restartPolicy = "Always"
-      }
-    })
-    # Ensure MongoDB data directory exists on boot disk
-    "startup-script" = <<EOT
+    # Use startup-script to fetch secrets from Secret Manager at boot,
+    # then run the MongoDB container with those secrets. This avoids
+    # placing secret values into Terraform state or instance metadata.
+    "startup-script" = <<'EOT'
 #!/bin/bash
-set -e
+set -euo pipefail
+
+# Ensure data directory
 MOUNT_POINT="/data/db"
-mkdir -p $${MOUNT_POINT}
-chmod 755 $${MOUNT_POINT}
+mkdir -p "${MOUNT_POINT}"
+chmod 700 "${MOUNT_POINT}"
+
+# Get project id from metadata
+PROJECT_ID=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/project/project-id")
+
+# Get access token for the VM service account
+TOKEN=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | sed -n 's/.*"access_token":"\([^\"]*\)".*/\1/p')
+
+# Helper to read secret payload (base64) and decode
+read_secret() {
+  local name="$1"
+  local data_b64
+  data_b64=$(curl -s -H "Authorization: Bearer ${TOKEN}" "https://secretmanager.googleapis.com/v1/projects/${PROJECT_ID}/secrets/${name}/versions/latest:access" | sed -n 's/.*"data":"\([^\"]*\)".*/\1/p')
+  echo "${data_b64}" | base64 --decode
+}
+
+MONGO_USER=$(read_secret "mongo-root-username") || exit 1
+MONGO_PASS=$(read_secret "mongo-root-password") || exit 1
+
+# Pull and run MongoDB container (use host path for data)
+container_image="mongo:8.0"
+if command -v docker >/dev/null 2>&1; then
+  docker pull "${container_image}"
+  docker rm -f mongodb || true
+  docker run -d --name mongodb \
+    -p 27017:27017 \
+    -v ${MOUNT_POINT}:/data/db \
+    -e MONGO_INITDB_ROOT_USERNAME="${MONGO_USER}" \
+    -e MONGO_INITDB_ROOT_PASSWORD="${MONGO_PASS}" \
+    --restart unless-stopped \
+    "${container_image}"
+else
+  # Try containerd ctr as fallback
+  if command -v crictl >/dev/null 2>&1; then
+    # crictl may not support docker run style; skip and let COS run containers
+    echo "docker not available; please ensure container runtime is present"
+    exit 1
+  else
+    echo "No container runtime found; exiting"
+    exit 1
+  fi
+fi
+
 EOT
     "enable-oslogin" = "TRUE"
   }
@@ -153,3 +160,5 @@ variable "disk_size_gb" {
   type    = number
   default = 50
 }
+
+## Note: secrets are fetched on VM boot using the VM service account.
