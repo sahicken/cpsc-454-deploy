@@ -1,6 +1,7 @@
 [submodule "frontend"]
 	path = frontend
 	url = https://github.com/khoado1/cpsc454_frontend
+	branch = dev
 [submodule "backend"]
 	path = backend
 	url = https://github.com/khoado1/cpsc454backend
