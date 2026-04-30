@@ -90,6 +90,7 @@ module "frontend_compute" {
 
   gcp_project_id        = var.gcp_project_id
   gcp_region            = var.gcp_region
+  gcp_zone              = var.gcp_zone
   service_name          = "frontend"
   machine_type          = var.machine_type
   environment           = var.environment
@@ -104,6 +105,7 @@ module "frontend_compute" {
   min_replicas          = 1
   max_replicas          = 2
   create_load_balancer  = false
+  use_zonal_mig         = var.use_zonal_mig
 
   depends_on = [module.artifacts, module.network]
 }
@@ -114,6 +116,7 @@ module "backend_compute" {
 
   gcp_project_id        = var.gcp_project_id
   gcp_region            = var.gcp_region
+  gcp_zone              = var.gcp_zone
   service_name          = "backend"
   machine_type          = var.machine_type
   environment           = var.environment
@@ -130,6 +133,7 @@ module "backend_compute" {
   mongodb_host          = module.mongodb.mongodb_internal_ip
   mongodb_port          = 27017
   create_load_balancer  = false
+  use_zonal_mig         = var.use_zonal_mig
 
   depends_on = [module.artifacts, module.network, module.mongodb]
 }

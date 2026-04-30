@@ -82,3 +82,15 @@ variable "source_ranges" {
   type    = list(string)
   default = ["0.0.0.0/0"]
 }
+
+variable "use_zonal_mig" {
+  description = "Use zonal MIG (staging) vs regional MIG (prod HA)"
+  type        = bool
+  default     = true
+}
+
+variable "gcp_zone" {
+  description = "GCP Zone for zonal deployments"
+  type        = string
+  default     = "us-central1-a"
+}

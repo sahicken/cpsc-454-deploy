@@ -27,3 +27,15 @@ variable "mongodb_machine_type" {
   type        = string
   default     = "e2-micro"
 }
+
+variable "use_zonal_mig" {
+  description = "Use zonal MIG for staging (simpler), regional for prod (HA)"
+  type        = bool
+  default     = true  # Zonal for staging
+}
+
+variable "gcp_zone" {
+  description = "GCP Zone for zonal deployments"
+  type        = string
+  default     = "us-central1-a"
+}

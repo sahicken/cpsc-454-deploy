@@ -108,14 +108,46 @@ resource "google_compute_backend_service" "app" {
   health_checks         = [google_compute_health_check.app.id]
 
   backend {
-    group          = google_compute_region_instance_group_manager.app.instance_group
+    group          = var.use_zonal_mig ? google_compute_instance_group_manager.app_zonal[0].instance_group : google_compute_region_instance_group_manager.app_regional[0].instance_group
     balancing_mode = "RATE"
     max_rate       = 100
   }
 }
 
-# Managed Instance Group
-resource "google_compute_region_instance_group_manager" "app" {
+# Zonal Managed Instance Group (for staging/dev - simpler)
+resource "google_compute_instance_group_manager" "app_zonal" {
+  count = var.use_zonal_mig ? 1 : 0
+  
+  name   = "${var.service_name}-mig"
+  zone   = var.gcp_zone
+  base_instance_name = "${var.service_name}-instance"
+
+  version {
+    instance_template = google_compute_instance_template.app.id
+    name              = "primary"
+  }
+
+  target_size = var.min_replicas
+
+  named_port {
+    name = "http"
+    port = var.container_port
+  }
+
+  auto_healing_policies {
+    health_check      = google_compute_health_check.app.id
+    initial_delay_sec = 60
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Regional Managed Instance Group (for prod HA - complex)
+resource "google_compute_region_instance_group_manager" "app_regional" {
+  count = var.use_zonal_mig ? 0 : 1
+  
   name   = "${var.service_name}-mig"
   region = var.gcp_region
   base_instance_name = "${var.service_name}-instance"
@@ -141,7 +173,7 @@ resource "google_compute_region_instance_group_manager" "app" {
     type                         = "PROACTIVE"
     minimal_action               = "REPLACE"
     instance_redistribution_type = "PROACTIVE"
-    max_surge_fixed              = 1
+    max_surge_fixed              = 3
     max_unavailable_fixed        = 0
   }
 
