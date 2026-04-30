@@ -82,26 +82,26 @@ resource "google_compute_instance_template" "mongodb" {
       }
     })
     # Startup script mounts the persistent disk to /data/db before the container starts
-    "startup-script" = <<'EOT'
+    "startup-script" = <<EOT
 #!/bin/bash
 set -e
 DISK_DEVICE="/dev/disk/by-id/google-mongodb-disk-${var.environment}"
 MOUNT_POINT="/data/db"
-mkdir -p ${MOUNT_POINT}
+mkdir -p $${MOUNT_POINT}
 # wait for disk to be attached
 for i in {1..30}; do
-  if [ -e "${DISK_DEVICE}" ]; then
+  if [ -e "$${DISK_DEVICE}" ]; then
     break
   fi
   sleep 1
 done
-if ! mountpoint -q ${MOUNT_POINT}; then
+if ! mountpoint -q $${MOUNT_POINT}; then
   # try to format if no filesystem
-  if ! blkid ${DISK_DEVICE}; then
-    mkfs.ext4 -F ${DISK_DEVICE} || true
+  if ! blkid $${DISK_DEVICE}; then
+    mkfs.ext4 -F $${DISK_DEVICE} || true
   fi
-  mount ${DISK_DEVICE} ${MOUNT_POINT}
-  chown -R 1000:1000 ${MOUNT_POINT} || true
+  mount $${DISK_DEVICE} $${MOUNT_POINT}
+  chown -R 1000:1000 $${MOUNT_POINT} || true
 fi
 EOT
     "enable-oslogin" = "TRUE"
