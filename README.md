@@ -6,7 +6,7 @@ This repository deploys the frontend (Next.js) and backend (FastAPI + MongoDB) t
 
 - **Frontend**: Next.js app running on port 3000 (via Managed Instance Group + LB)
 - **Backend**: FastAPI app running on port 9001 (via Managed Instance Group + LB)
-- **Database**: MongoDB on separate Compute Engine VM
+- **Database**: MongoDB on separate Compute Engine VM, using the lowest-cost default for basic dev/staging
 - **CI/CD**: Cloud Build (automatic on git push to `main`)
 - **IaC**: Terraform with GCS remote state
 
@@ -86,8 +86,17 @@ terraform init -backend-config=bucket=${PROJECT_ID}-terraform-state
 ### 5. Plan & Apply Terraform (Staging)
 
 ```bash
-terraform plan -var gcp_project_id=$PROJECT_ID -var environment=staging
-terraform apply -var gcp_project_id=$PROJECT_ID -var environment=staging
+terraform plan \
+  -var gcp_project_id=$PROJECT_ID \
+  -var environment=staging \
+  -var machine_type=e2-micro \
+  -var mongodb_machine_type=e2-micro
+
+terraform apply \
+  -var gcp_project_id=$PROJECT_ID \
+  -var environment=staging \
+  -var machine_type=e2-micro \
+  -var mongodb_machine_type=e2-micro
 ```
 
 Terraform will output the load balancer IPs:
@@ -188,7 +197,7 @@ This automatically triggers Cloud Build, which rebuilds and redeploys the images
 
 ## Database Initialization
 
-MongoDB runs on a separate VM with default credentials (`admin` / `changeme`). 
+MongoDB runs on a separate VM with default credentials (`admin` / `changeme`). Staging keeps all GCE instances on `e2-micro` by default so you can deploy cheaply; raise machine types later only when you actually need more headroom.
 
 To create test users:
 

@@ -17,7 +17,4 @@ COPY backend/ .
 
 EXPOSE 9001
 
-# Use the health_wrapper.py from deployment repo to add /health endpoint
-COPY deploy/health_wrapper.py /app/health_wrapper.py
-
-CMD ["python3", "/app/health_wrapper.py"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "9001"]

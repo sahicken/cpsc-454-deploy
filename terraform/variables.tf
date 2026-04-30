@@ -23,7 +23,7 @@ variable "machine_type" {
 }
 
 variable "mongodb_machine_type" {
-  description = "GCE machine type for MongoDB (needs more RAM than app VMs)"
+  description = "GCE machine type for MongoDB (staging default; override for prod if needed)"
   type        = string
-  default     = "e2-small"  # e2-small = 2GB RAM (~$20/mo), e2-medium = 4GB RAM (~$30/mo)
+  default     = "e2-micro"
 }
