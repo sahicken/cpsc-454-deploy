@@ -78,7 +78,7 @@ steps:
       - |
         set -euo pipefail
         IP=$(terraform output -raw frontend_lb_ip 2>/dev/null || terraform output frontend_lb_ip)
-        echo "Load balancer IP: $IP"
+        echo "Load balancer IP: $$IP"
         echo "Checking frontend /"
         curl -fsS --max-time 10 http://$$IP || (echo 'Frontend check failed'; exit 1)
         echo "Checking backend /health"
