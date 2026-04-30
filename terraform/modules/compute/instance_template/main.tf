@@ -118,6 +118,7 @@ resource "google_compute_backend_service" "app" {
 resource "google_compute_region_instance_group_manager" "app" {
   name   = "${var.service_name}-mig"
   region = var.gcp_region
+  base_instance_name = "${var.service_name}-instance"
 
   version {
     instance_template = google_compute_instance_template.app.id
@@ -137,11 +138,11 @@ resource "google_compute_region_instance_group_manager" "app" {
   }
 
   update_policy {
+    type                         = "PROACTIVE"
+    minimal_action               = "REPLACE"
     instance_redistribution_type = "PROACTIVE"
     max_surge_fixed              = 1
     max_unavailable_fixed        = 0
-    min_ready_sec                = 60
-    replacement_method           = "SUBSTITUTE"
   }
 
   lifecycle {
