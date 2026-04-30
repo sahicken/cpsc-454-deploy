@@ -42,7 +42,7 @@ module "mongodb" {
 
   gcp_project_id        = var.gcp_project_id
   gcp_region            = var.gcp_region
-  machine_type          = "e2-medium"
+  machine_type          = var.mongodb_machine_type
   environment           = var.environment
   network_id            = module.network.network_id
   subnet_id             = module.network.subnet_id
