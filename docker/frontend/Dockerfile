@@ -1,6 +1,6 @@
 # Frontend Dockerfile - Next.js app from voxguard-frontend/
 
-FROM node:18-alpine as builder
+FROM node:20-alpine as builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY frontend/voxguard-frontend/ .
 RUN npm run build
 
 # Runtime stage
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
