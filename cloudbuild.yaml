@@ -1,0 +1,82 @@
+steps:
+  # Step 1: Initialize submodules
+  - name: "gcr.io/cloud-builders/git"
+    args: ["submodule", "update", "--init", "--recursive"]
+
+  # Step 2: Build frontend image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:latest"
+      - "-f"
+      - "docker/frontend/Dockerfile"
+      - "."
+    env:
+      - "CLOUDSDK_COMPUTE_REGION=${_REGION}"
+
+  # Step 3: Build backend image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:latest"
+      - "-f"
+      - "docker/backend/Dockerfile"
+      - "."
+    env:
+      - "CLOUDSDK_COMPUTE_REGION=${_REGION}"
+
+  # Step 4: Push frontend image
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}"]
+
+  # Step 5: Push backend image
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}"]
+
+  # Step 6: Deploy using Terraform (staging)
+  - name: "gcr.io/cloud-builders/terraform"
+    args:
+      - "init"
+      - "-backend-config=bucket=${_TERRAFORM_STATE_BUCKET}"
+    dir: "terraform"
+    env:
+      - "TF_VAR_gcp_project_id=$PROJECT_ID"
+      - "TF_VAR_gcp_region=${_REGION}"
+      - "TF_VAR_environment=staging"
+
+  - name: "gcr.io/cloud-builders/terraform"
+    args:
+      - "plan"
+      - "-out=tfplan"
+      - "-var=gcp_project_id=$PROJECT_ID"
+      - "-var=gcp_region=${_REGION}"
+      - "-var=environment=staging"
+    dir: "terraform"
+
+  - name: "gcr.io/cloud-builders/terraform"
+    args:
+      - "apply"
+      - "-auto-approve"
+      - "tfplan"
+    dir: "terraform"
+    env:
+      - "TF_VAR_gcp_project_id=$PROJECT_ID"
+      - "TF_VAR_gcp_region=${_REGION}"
+
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}"
+
+substitutions:
+  _REGION: "us-central1"
+  _ARTIFACT_REPO: "app-images"
+  _TERRAFORM_STATE_BUCKET: "${PROJECT_ID}-terraform-state"
+
+options:
+  machineType: "N1_HIGHCPU_8"
