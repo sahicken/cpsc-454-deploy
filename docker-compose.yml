@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:8.0
+    container_name: cpsc454-mongodb-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: devpassword
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --username admin --password devpassword --authenticationDatabase admin --eval \"db.adminCommand('ping').ok\" >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: cpsc454-backend-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9001:9001"
+    environment:
+      ENVIRONMENT: development
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_URI: mongodb://admin:devpassword@mongodb:27017/?authSource=admin
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: devpassword
+      JWT_SECRET: dev-secret-key-change-in-production
+      JWT_EXPIRES_MINUTES: 1440
+      CORS_ALLOW_ORIGINS: http://localhost:3000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "
+        pip install -r requirements.txt &&
+        uvicorn server:app --host 0.0.0.0 --port 9001 --reload
+      "
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: cpsc454-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:9001
+      ENVIRONMENT: development
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/voxguard-frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+volumes:
+  mongodb_data:
